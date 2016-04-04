@@ -1,0 +1,138 @@
+	*200
+
+	AIX0=10
+	AIX1=11
+
+/variables in zero page
+
+ARRCTR=20
+DIGCTR=21
+DIVISOR=22
+
+CY=23
+VAL=24
+
+	/ calc digits of e=2.71828... using spigot algorithm
+	/ no EAE is needed, no MQ is used, no IAC+RA(L|R) used, no BSW used,
+	/ so it should work on any PDP-8
+	/
+	/ outputs to tty (TLS/TSF)
+	/
+	/ uses only 12-bit arithmetics so just 918 digits are generated (not counting 2. beginning)
+
+
+	/ print "2."
+	cla cll cml rtl	/ A=2
+	tad	DIGIT
+	tls
+	
+	tad	DOTM2
+	tsf
+	jmp	.-1
+	tls
+
+
+	/ initialize ARRAY with all ones
+	jms	ARRPASS
+CLRLOOP,
+	cla iac
+	dca	i AIX0
+	isz	ARRCTR
+	jmp	CLRLOOP
+
+	/initialize digits counter
+	tad	DIGITS
+	dca	DIGCTR
+
+	/digits loop
+DIGLOOP,
+
+	/ initialize pass through array
+	jms	ARRPASS
+	/ divisor for modulo calc, goes from 418(dec) to 2
+	tad	DVINIT
+	dca	DIVISOR
+
+	dca	CY / carry=0
+ARRLOOP,
+	/ get array value
+	tad	i AIX0
+	/ mul 10 plus carry
+	cll ral
+	dca	VAL
+	tad	VAL
+	cll rtl
+	tad	VAL
+	tad	CY
+	dca	VAL	/ VAL=array[i]*10+carry
+
+	/ clear carry -- which will be the result of division
+	dca	CY
+
+	/ division of VAL by DIVISOR (which is negated)
+	tad	VAL
+DIV,
+	cll
+	tad	DIVISOR
+	snl
+	jmp	DIVEND
+	isz	CY	/adjust result
+	jmp	DIV
+DIVEND,
+
+	cma iac
+	tad	DIVISOR
+	cma iac 
+	/ AC=-(DIVISOR-AC)=AC-DIVISOR -- restore last addition to get correct quotient
+
+	dca	i AIX1 /store updated array value
+
+
+	/ go through all the array
+	isz	DIVISOR	/not ever going to 0
+	
+	isz	ARRCTR
+	jmp	ARRLOOP
+
+	/ carry contains digit to print
+	tad	CY
+	tad	DIGIT
+	tsf
+	jmp	.-1
+	tls
+
+	/ go through all the digits
+	isz	DIGCTR
+	jmp	DIGLOOP
+
+	hlt
+
+
+ARRPASS,
+	0
+	cla
+	tad	ARRSZ
+	dca	ARRCTR
+	tad	ARRAY
+	dca	AIX0
+	tad	ARRAY
+	dca	AIX1
+	jmp	i ARRPASS
+
+
+
+	
+
+
+
+ARRSZ,	-641	/-417(dec) -- size of array
+DIGITS,	-1626	/-918(dec) -- number of digits to generate
+DVINIT,	-642	/-418(dec)
+
+DOTM2,	7774	/"."-"2"
+DIGIT,	ASCII	"0"
+
+ARRAY,	.
+	/ array of 641(oct)/417(dec) words used for calculations
+$
+

@@ -1,0 +1,158 @@
+
+
+
+              *200                                                        Page 1
+
+
+    1        0200          *200
+    2              
+    3        0010          AIX0=10
+    4        0011          AIX1=11
+    5              
+    6              /variables in zero page
+    7              
+    8        0020  ARRCTR=20
+    9        0021  DIGCTR=21
+   10        0022  DIVISOR=22
+   11              
+   12        0023  CY=23
+   13        0024  VAL=24
+   14              
+   15                      / calc digits of e=2.71828... using spigot algorithm
+   16                      / no EAE is needed, no MQ is used, no IAC+RA(L|R) used, no BSW used,
+   17                      / so it should work on any PDP-8
+   18                      /
+   19                      / outputs to tty (TLS/TSF)
+   20                      /
+   21                      / uses only 12-bit arithmetics so just 918 digits are generated (not counting 2. beginning)
+   22              
+   23              
+   24                      / print "2."
+   25 00200  7326          cla cll cml rtl / A=2
+   26 00201  1276          tad     DIGIT
+   27 00202  6046          tls
+   28                      
+   29 00203  1275          tad     DOTM2
+   30 00204  6041          tsf
+   31 00205  5204          jmp     .-1
+   32 00206  6046          tls
+   33              
+   34              
+   35                      / initialize ARRAY with all ones
+   36 00207  4261          jms     ARRPASS
+   37              CLRLOOP,
+   38 00210  7201          cla iac
+   39 00211  3410          dca     i AIX0
+   40 00212  2020          isz     ARRCTR
+   41 00213  5210          jmp     CLRLOOP
+   42              
+   43                      /initialize digits counter
+   44 00214  1273          tad     DIGITS
+   45 00215  3021          dca     DIGCTR
+   46              
+   47                      /digits loop
+   48              DIGLOOP,
+   49              
+   50                      / initialize pass through array
+
+
+
+              *200                                                        Page 2
+
+
+   51 00216  4261          jms     ARRPASS
+   52                      / divisor for modulo calc, goes from 418(dec) to 2
+   53 00217  1274          tad     DVINIT
+   54 00220  3022          dca     DIVISOR
+   55              
+   56 00221  3023          dca     CY / carry=0
+   57              ARRLOOP,
+   58                      / get array value
+   59 00222  1410          tad     i AIX0
+   60                      / mul 10 plus carry
+   61 00223  7104          cll ral
+   62 00224  3024          dca     VAL
+   63 00225  1024          tad     VAL
+   64 00226  7106          cll rtl
+   65 00227  1024          tad     VAL
+   66 00230  1023          tad     CY
+   67 00231  3024          dca     VAL     / VAL=array[i]*10+carry
+   68              
+   69                      / clear carry -- which will be the result of division
+   70 00232  3023          dca     CY
+   71              
+   72                      / division of VAL by DIVISOR (which is negated)
+   73 00233  1024          tad     VAL
+   74              DIV,
+   75 00234  7100          cll
+   76 00235  1022          tad     DIVISOR
+   77 00236  7420          snl
+   78 00237  5242          jmp     DIVEND
+   79 00240  2023          isz     CY      /adjust result
+   80 00241  5234          jmp     DIV
+   81              DIVEND,
+   82              
+   83 00242  7041          cma iac
+   84 00243  1022          tad     DIVISOR
+   85 00244  7041          cma iac 
+   86                      / AC=-(DIVISOR-AC)=AC-DIVISOR -- restore last addition to get correct quotient
+   87              
+   88 00245  3411          dca     i AIX1 /store updated array value
+   89              
+   90              
+   91                      / go through all the array
+   92 00246  2022          isz     DIVISOR /not ever going to 0
+   93                      
+   94 00247  2020          isz     ARRCTR
+   95 00250  5222          jmp     ARRLOOP
+   96              
+   97                      / carry contains digit to print
+   98 00251  1023          tad     CY
+   99 00252  1276          tad     DIGIT
+  100 00253  6041          tsf
+
+
+
+              *200                                                        Page 3
+
+
+  101 00254  5253          jmp     .-1
+  102 00255  6046          tls
+  103              
+  104                      / go through all the digits
+  105 00256  2021          isz     DIGCTR
+  106 00257  5216          jmp     DIGLOOP
+  107              
+  108 00260  7402          hlt
+  109              
+  110              
+  111              ARRPASS,
+  112 00261  0000          0
+  113 00262  7200          cla
+  114 00263  1272          tad     ARRSZ
+  115 00264  3020          dca     ARRCTR
+  116 00265  1277          tad     ARRAY
+  117 00266  3010          dca     AIX0
+  118 00267  1277          tad     ARRAY
+  119 00270  3011          dca     AIX1
+  120 00271  5661          jmp     i ARRPASS
+  121              
+  122              
+  123              
+  124                      
+  125              
+  126              
+  127              
+  128 00272  7137  ARRSZ,  -641    /-417(dec) -- size of array
+  129 00273  6152  DIGITS, -1626   /-918(dec) -- number of digits to generate
+  130 00274  7136  DVINIT, -642    /-418(dec)
+  131              
+  132 00275  7774  DOTM2,  7774    /"."-"2"
+  133 00276  0260  DIGIT,  ASCII   "0"
+  134              
+  135 00277  0277  ARRAY,  .
+  136                      / array of 641(oct)/417(dec) words used for calculations
+  137              $
+
+      No detected errors
+      No links generated

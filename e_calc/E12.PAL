@@ -1,0 +1,144 @@
+	*200
+
+	AIX0=10
+	AIX1=11
+
+/variables in zero page
+
+ARRCTR=20
+DIGCLO=21
+DIGCHI=22
+
+CY=23
+
+MULHI=24
+
+
+/opcodes absent in palbart
+MUY=7405
+DVI=7407
+
+
+	/ calc digits of e=2.71828... using spigot algorithm
+	/ EAE needed, 13019 digits generated
+	/
+	/ outputs to tty (TLS/TSF)
+
+
+	/ print "2."
+	cla cll cml rtl	/ A=2
+	tad	DIGIT
+	tls
+	
+	tad	DOTM2
+	tsf
+	jmp	.-1
+	tls
+
+
+
+	/ prepare for array pre-init
+
+	cla cll cml rtl /load -4094(dec)=-7776(oct)=2
+	dca	ARRCTR
+	dca	AIX0    /let's arrays start at offset one, so we can just clear ptr
+
+	/ set data field -- the next after current instruction field!
+	rif /AC was zero
+	tad	CDFOP
+	dca	.+1
+	cdf
+
+	/ initialize ARRAY with all ones
+CLRLOOP,
+	cla iac
+	dca	i AIX0
+	isz	ARRCTR
+	jmp	CLRLOOP
+
+	/initialize digits counter
+	tad	DIGILO
+	dca	DIGCLO
+	tad	DIGIHI
+	dca	DIGCHI
+
+	/digits loop
+DIGLOOP,
+
+	/ initialize pass through array
+	cla cll cml rtl /load -4094(dec)=-7776(oct)=2
+	dca	ARRCTR
+	dca	AIX0    /let's arrays start at offset one, so we can just clear
+	dca	AIX1   / predecrementing pointers
+	
+	/ divisor for modulo calc, goes from 4095(dec)
+	cla cma
+	dca	DIVISOR
+
+	dca	CY / carry=0
+ARRLOOP,
+	/ get array value
+	tad	i AIX0
+	
+	/ mul by 10
+	mql
+	muy
+	12	/10 dec
+
+	/add carry to the result
+	dca	MULHI
+	cla mqa
+	tad	CY	/link now contains binary carry to MULHI
+	mql
+
+	tad	MULHI
+	szl
+	iac
+
+	dvi
+DIVISOR,0
+		/AC - remainder, MQ - quotient
+
+	dca	i AIX1 /store updated array value
+	cla mqa
+	dca	CY /new carry
+
+	/decrement divisor
+	cla cma
+	tad	DIVISOR
+	dca	DIVISOR
+
+	/ loop through array
+	isz	ARRCTR
+	jmp	ARRLOOP
+
+	/ carry contains digit to print
+	tad	CY
+	tad	DIGIT
+	tsf
+	jmp	.-1
+	tls
+
+	/ go through all the digits
+	isz	DIGCLO
+	jmp	DIGLOOP
+	isz	DIGCHI
+	jmp	DIGLOOP
+
+	hlt
+
+
+	
+
+CDFOP,	6211	/opcode of CDF command
+
+DIGILO,	-1334	/total 13019 dec digits ((4-1)*10000+(1334-1))
+DIGIHI,	-4
+
+/DOTM2,	7774	/"."-"2"
+DOTM2=DIGIHI /happen to carry same value as DIGIHI
+
+DIGIT,	ASCII	"0"
+
+$
+

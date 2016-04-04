@@ -1,0 +1,164 @@
+
+
+
+              *200                                                        Page 1
+
+
+    1        0200          *200
+    2              
+    3        0010          AIX0=10
+    4        0011          AIX1=11
+    5              
+    6              /variables in zero page
+    7              
+    8        0020  ARRCTR=20
+    9        0021  DIGCLO=21
+   10        0022  DIGCHI=22
+   11              
+   12        0023  CY=23
+   13              
+   14        0024  MULHI=24
+   15              
+   16              
+   17              /opcodes absent in palbart
+   18        7405  MUY=7405
+   19        7407  DVI=7407
+   20              
+   21              
+   22                      / calc digits of e=2.71828... using spigot algorithm
+   23                      / EAE needed, 13019 digits generated
+   24                      /
+   25                      / outputs to tty (TLS/TSF)
+   26              
+   27              
+   28                      / print "2."
+   29 00200  7326          cla cll cml rtl / A=2
+   30 00201  1277          tad     DIGIT
+   31 00202  6046          tls
+   32                      
+   33 00203  1276          tad     DOTM2
+   34 00204  6041          tsf
+   35 00205  5204          jmp     .-1
+   36 00206  6046          tls
+   37              
+   38              
+   39              
+   40                      / prepare for array pre-init
+   41              
+   42 00207  7326          cla cll cml rtl /load -4094(dec)=-7776(oct)=2
+   43 00210  3020          dca     ARRCTR
+   44 00211  3010          dca     AIX0    /let's arrays start at offset one, so we can just clear ptr
+   45              
+   46                      / set data field -- the next after current instruction field!
+   47 00212  6224          rif /AC was zero
+   48 00213  1274          tad     CDFOP
+   49 00214  3215          dca     .+1
+   50 00215  6201          cdf
+
+
+
+              *200                                                        Page 2
+
+
+   51              
+   52                      / initialize ARRAY with all ones
+   53              CLRLOOP,
+   54 00216  7201          cla iac
+   55 00217  3410          dca     i AIX0
+   56 00220  2020          isz     ARRCTR
+   57 00221  5216          jmp     CLRLOOP
+   58              
+   59                      /initialize digits counter
+   60 00222  1275          tad     DIGILO
+   61 00223  3021          dca     DIGCLO
+   62 00224  1276          tad     DIGIHI
+   63 00225  3022          dca     DIGCHI
+   64              
+   65                      /digits loop
+   66              DIGLOOP,
+   67              
+   68                      / initialize pass through array
+   69 00226  7326          cla cll cml rtl /load -4094(dec)=-7776(oct)=2
+   70 00227  3020          dca     ARRCTR
+   71 00230  3010          dca     AIX0    /let's arrays start at offset one, so we can just clear
+   72 00231  3011          dca     AIX1   / predecrementing pointers
+   73                      
+   74                      / divisor for modulo calc, goes from 4095(dec)
+   75 00232  7240          cla cma
+   76 00233  3251          dca     DIVISOR
+   77              
+   78 00234  3023          dca     CY / carry=0
+   79              ARRLOOP,
+   80                      / get array value
+   81 00235  1410          tad     i AIX0
+   82                      
+   83                      / mul by 10
+   84 00236  7421          mql
+   85 00237  7405          muy
+   86 00240  0012          12      /10 dec
+   87              
+   88                      /add carry to the result
+   89 00241  3024          dca     MULHI
+   90 00242  7701          cla mqa
+   91 00243  1023          tad     CY      /link now contains binary carry to MULHI
+   92 00244  7421          mql
+   93              
+   94 00245  1024          tad     MULHI
+   95 00246  7430          szl
+   96 00247  7001          iac
+   97              
+   98 00250  7407          dvi
+   99 00251  0000  DIVISOR,0
+  100                              /AC - remainder, MQ - quotient
+
+
+
+              *200                                                        Page 3
+
+
+  101              
+  102 00252  3411          dca     i AIX1 /store updated array value
+  103 00253  7701          cla mqa
+  104 00254  3023          dca     CY /new carry
+  105              
+  106                      /decrement divisor
+  107 00255  7240          cla cma
+  108 00256  1251          tad     DIVISOR
+  109 00257  3251          dca     DIVISOR
+  110              
+  111                      / loop through array
+  112 00260  2020          isz     ARRCTR
+  113 00261  5235          jmp     ARRLOOP
+  114              
+  115                      / carry contains digit to print
+  116 00262  1023          tad     CY
+  117 00263  1277          tad     DIGIT
+  118 00264  6041          tsf
+  119 00265  5264          jmp     .-1
+  120 00266  6046          tls
+  121              
+  122                      / go through all the digits
+  123 00267  2021          isz     DIGCLO
+  124 00270  5226          jmp     DIGLOOP
+  125 00271  2022          isz     DIGCHI
+  126 00272  5226          jmp     DIGLOOP
+  127              
+  128 00273  7402          hlt
+  129              
+  130              
+  131                      
+  132              
+  133 00274  6211  CDFOP,  6211    /opcode of CDF command
+  134              
+  135 00275  6444  DIGILO, -1334   /total 13019 dec digits ((4-1)*10000+(1334-1))
+  136 00276  7774  DIGIHI, -4
+  137              
+  138              /DOTM2, 7774    /"."-"2"
+  139        0276  DOTM2=DIGIHI /happen to carry same value as DIGIHI
+  140              
+  141 00277  0260  DIGIT,  ASCII   "0"
+  142              
+  143              $
+
+      No detected errors
+      No links generated
